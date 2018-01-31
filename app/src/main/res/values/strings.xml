@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">My Application</string>
+    <string name="meme">meme</string>
+    <string name="open_weather_map_api_key">03da8312a7a5e6916e46e172e8c0b2f0</string>
+    <string name="check_weather">Check</string>
+    <string name="write_down_your_city">Write down your city</string>
+</resources>
