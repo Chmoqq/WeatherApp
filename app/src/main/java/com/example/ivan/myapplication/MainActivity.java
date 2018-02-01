@@ -4,21 +4,26 @@ import android.annotation.SuppressLint;
 import android.content.DialogInterface;
 import android.graphics.Typeface;
 import android.os.Handler;
+import android.os.Message;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import org.json.JSONObject;
+
+import org.greenrobot.eventbus.EventBus;
+import org.greenrobot.eventbus.Subscribe;
+import org.greenrobot.eventbus.ThreadMode;
 
 import java.text.DateFormat;
+import java.text.FieldPosition;
+import java.text.ParsePosition;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
@@ -27,17 +32,52 @@ public class MainActivity extends AppCompatActivity {
 
     private Handler handler = new Handler();
 
-    private Typeface weatherFont;
     private TextView cityTextView;
     private TextView updatedTextView;
     private TextView detailsTextView;
     private TextView currentTempTextView;
-    private TextView weatherIcon;
     private AlertDialog.Builder alert;
+
+    private int error;
+    private String weather;
+    private String city;
+    private long date;
+    private double temp;
+
+    public void setTemp(double temp) {
+        this.temp = temp;
+    }
+
+    public void setDate(long date) {
+        this.date = date;
+    }
+
+    public void setError(int error) {
+        this.error = error;
+    }
+
+    public void setWeather(String weather) {
+        this.weather = weather;
+    }
+
+    public void setCity(String city) {
+        this.city = city;
+    }
+
+
+    @Subscribe(threadMode = ThreadMode.MAIN)
+    public void onMessageEvent(WeatherResponse event) {
+        setError(event.getCod());
+        setCity(event.getName());
+        setWeather(event.getWeather().get(0).getMain());
+        setTemp(event.getMainTemp().getTemp());
+        setDate(event.getDt());
+        renderWeather();
+    }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-     dialogShow();
+        dialogShow();
         return true;
     }
 
@@ -51,54 +91,34 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        EventBus.getDefault().register(this);
     }
 
     private void updateWeatherData(String city) {
-        new Thread() {
-            public void run() {
-                final JSONObject json = WeatherDataLoader.getJSONData(MainActivity.this.getApplicationContext(), city);
+        new Thread(() -> WeatherDataLoader.infoGetter(city)).start();
 
-                if (json == null) {
-                    handler.post(() -> Toast.makeText(MainActivity.this.getApplicationContext(), "Something went wrong", Toast.LENGTH_LONG).show());
-                } else {
-                    handler.post(() -> {
-                        MainActivity.this.renderWeather(json);
-                    });
-                }
-            }
-        }.start();
 
     }
 
     @SuppressLint("SetTextI18n")
-    private void renderWeather(JSONObject json) {
-        try {
-            final String cityText = json.getString("name").toUpperCase(Locale.ENGLISH) + ". " + json.getJSONObject("sys").getString("country");
-            cityTextView = findViewById(R.id.text_view_1);
-            cityTextView.setText(cityText);
+    private void renderWeather() {
+        final String cityText = city;
+        cityTextView = findViewById(R.id.text_view_1);
+        cityTextView.setText(cityText);
 
-            JSONObject details = json.getJSONArray("weather").getJSONObject(0);
-            JSONObject main = json.getJSONObject("main");
-            String detailsText = details.getString("description").toUpperCase(Locale.ENGLISH) + "\n" + "Humidity: "
-                    + main.getString("humidity") + "%" + "\n"
-                    + "Pressure: " + main.getString("pressure") + "hPa";
+        String detailsText = weather;
+        detailsTextView = findViewById(R.id.text_view_2);
+        detailsTextView.setText(detailsText);
 
-            detailsTextView = findViewById(R.id.text_view_2);
-            detailsTextView.setText(detailsText);
+        currentTempTextView = findViewById(R.id.text_view_3);
+        currentTempTextView.setText(String.valueOf((int)temp) + "°C");
 
-            @SuppressLint("DefaultLocale") String currentTempText = String.format("%.2f", main.getDouble("temp")) + "C";
-            currentTempTextView = findViewById(R.id.text_view_3);
-            currentTempTextView.setText(currentTempText);
-
-            DateFormat date = DateFormat.getDateTimeInstance();
-            String updateOn = date.format(new Date(json.getLong("dt") * 1000));
-            updatedTextView = findViewById(R.id.text_view_4);
-            updatedTextView.setText("Last update: " + updateOn);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        updatedTextView = findViewById(R.id.text_view_4);
+        DateFormat dateFormat = DateFormat.getDateTimeInstance();
+        String lastUpdate = dateFormat.format(new Date(this.date * 1000));
+        updatedTextView.setText(lastUpdate);
     }
+
 
     private void dialogShow() {
         alert = new AlertDialog.Builder(MainActivity.this);
@@ -106,7 +126,11 @@ public class MainActivity extends AppCompatActivity {
         final EditText input = new EditText(this);
         input.setInputType(InputType.TYPE_CLASS_TEXT);
         alert.setView(input);
-        alert.setPositiveButton("Check", (dialogInterface, i) -> updateWeatherData(input.getText().toString()));
+        alert.setPositiveButton("Check", (dialogInterface, i) -> {
+            MainActivity.this.updateWeatherData(input.getText().toString());
+
+        });
         alert.show();
     }
+
 }
