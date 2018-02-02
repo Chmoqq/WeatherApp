@@ -1,6 +1,12 @@
 package com.example.ivan.myapplication;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
+import android.content.Context;
+import android.content.pm.PackageManager;
+import android.location.Location;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -13,17 +19,22 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.tasks.OnSuccessListener;
+
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
 import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public class MainActivity extends AppCompatActivity {
 
 
+    private static final int PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 200;
+    private FusedLocationProviderClient mFusedLocationProviderClient;
     private TextView iconTextView;
     private TextView cityTextView;
     private TextView updatedTextView;
@@ -32,6 +43,8 @@ public class MainActivity extends AppCompatActivity {
     private AlertDialog.Builder alert;
     static Toast errorToast;
 
+    private double latitude;
+    private double longitude;
     private long date;
     private int sunset;
     private int sunrise;
@@ -44,55 +57,6 @@ public class MainActivity extends AppCompatActivity {
     private String city;
     private String weatherDescription;
     private ImageView backgroundImageView;
-
-    public void setWeatherInfoMain(String weatherInfoMain) {
-        this.weatherInfoMain = weatherInfoMain;
-    }
-
-    public void setCountry(String country) {
-        this.country = country;
-    }
-
-    public void setWeatherDescription(String weatherDescription) {
-        this.weatherDescription = weatherDescription;
-    }
-
-    public void setSunset(int sunset) {
-        this.sunset = sunset;
-    }
-
-    public void setHumidity(int humidity) {
-        this.humidity = humidity;
-    }
-
-    public void setSunrise(int sunrise) {
-        this.sunrise = sunrise;
-    }
-
-    public void setClouds(int clouds) {
-        this.clouds = clouds;
-    }
-
-    public void setTemp(double temp) {
-        this.temp = temp;
-    }
-
-    public void setDate(long date) {
-        this.date = date;
-    }
-
-    public void setError(int error) {
-        this.error = error;
-    }
-
-    public void setWeather(String weather) {
-        this.weatherInfoMain = weather;
-    }
-
-    public void setCity(String city) {
-        this.city = city;
-    }
-
 
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onMessageEvent(WeatherResponse event) {
@@ -117,14 +81,16 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        mFusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
         EventBus.getDefault().register(this);
+        getLongLat();
+        WeatherDataLoader.infoGetterCity(null, (float) latitude, (float) longitude);
     }
 
     private void updateWeatherData(String city) {
-        new Thread(() -> WeatherDataLoader.infoGetter(city)).start();
-
-
+        new Thread(() -> WeatherDataLoader.infoGetterCity(city, 0, 0)).start();
     }
+
 
     @SuppressLint("SetTextI18n")
     private void renderWeather() {
@@ -165,22 +131,21 @@ public class MainActivity extends AppCompatActivity {
 
     private void infoSetter(WeatherResponse dataEvent) {
 
-        setError(dataEvent.getCod());
-        setCity(dataEvent.getName());
-        setWeather(dataEvent.getWeather().get(0).getDescription());
-        setTemp(dataEvent.getMainTemp().getTemp());
-        setDate(dataEvent.getDt());
-        setClouds(dataEvent.getCloudsClass().getClouds());
-        setSunrise(dataEvent.getOtherInfo().getSunrise());
-        setSunset(dataEvent.getOtherInfo().getSunset());
-        setHumidity(dataEvent.getMainTemp().getHumidity());
-        setWeatherInfoMain(dataEvent.getWeather().get(0).getWeatherInfoMain());
-        setWeatherDescription(dataEvent.getWeather().get(0).getDescription());
-        setCountry(dataEvent.getOtherInfo().getCountry());
+        error = dataEvent.getCod();
+        city = dataEvent.getName();
+        temp = dataEvent.getMainTemp().getTemp();
+        date = dataEvent.getDt();
+        clouds = dataEvent.getCloudsClass().getClouds();
+        sunrise = dataEvent.getOtherInfo().getSunrise();
+        sunset = dataEvent.getOtherInfo().getSunset();
+        humidity = dataEvent.getMainTemp().getHumidity();
+        weatherInfoMain = dataEvent.getWeather().get(0).getWeatherInfoMain();
+        weatherDescription = dataEvent.getWeather().get(0).getDescription();
+        country = dataEvent.getOtherInfo().getCountry();
     }
 
     private void backgroundSetter() {
-        if (weatherInfoMain.equalsIgnoreCase("Clouds") || weatherInfoMain.equalsIgnoreCase("Mist") || weatherInfoMain.equalsIgnoreCase("Smoke") ) {
+        if (weatherInfoMain.equalsIgnoreCase("Clouds") || weatherInfoMain.equalsIgnoreCase("Mist") || weatherInfoMain.equalsIgnoreCase("Smoke")) {
             backgroundImageView.setImageResource(R.drawable.clouds);
         } else if (weatherInfoMain.equalsIgnoreCase("Thunderstorm") || weatherInfoMain.equalsIgnoreCase("Rain")) {
             backgroundImageView.setImageResource(R.drawable.rain);
@@ -194,12 +159,32 @@ public class MainActivity extends AppCompatActivity {
             iconTextView.setText(R.string.sunny_clouds);
         } else if (weatherInfoMain.equalsIgnoreCase("Rain") || weatherInfoMain.equalsIgnoreCase("Thunderstorm")) {
             iconTextView.setText(R.string.rainy);
-        } else if(weatherDescription.equalsIgnoreCase("light rain")) {
+        } else if (weatherDescription.equalsIgnoreCase("light rain")) {
             iconTextView.setText(R.string.rain_light);
         } else if (weatherInfoMain.equalsIgnoreCase("Snow")) {
             iconTextView.setText(R.string.snowy);
-        } else  if (weatherInfoMain.equalsIgnoreCase("Clear")) {
+        } else if (weatherInfoMain.equalsIgnoreCase("Clear")) {
             iconTextView.setText(R.string.sun_clear);
+        }
+    }
+
+    private void getLongLat() {
+
+        if (ContextCompat.checkSelfPermission(this.getApplicationContext(), Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+
+            mFusedLocationProviderClient.getLastLocation()
+                    .addOnSuccessListener(this, new OnSuccessListener<Location>() {
+                        @Override
+                        public void onSuccess(Location location) {
+                            if (location != null) {
+                                latitude = location.getLatitude();
+                                longitude = location.getLongitude();
+                            }
+                        }
+                    });
+        } else {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION);
         }
     }
 
