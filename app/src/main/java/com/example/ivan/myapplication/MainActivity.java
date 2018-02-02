@@ -8,7 +8,7 @@ import android.text.InputType;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.EditText;
-import android.widget.RelativeLayout;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -18,6 +18,7 @@ import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
 import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public class MainActivity extends AppCompatActivity {
@@ -29,17 +30,47 @@ public class MainActivity extends AppCompatActivity {
     private TextView detailsTextView;
     private TextView currentTempTextView;
     private AlertDialog.Builder alert;
+    static Toast errorToast;
 
     private long date;
-    private double temp;
+    private int sunset;
+    private int sunrise;
     private int error;
-    private String weather;
+    private String country;
+    private int humidity;
+    private int clouds;
+    private double temp;
+    private String weatherInfoMain;
     private String city;
-    private String icon;
-    private RelativeLayout mainPage;
+    private String weatherDescription;
+    private ImageView backgroundImageView;
 
-    public void setIcon(String icon) {
-        this.icon = icon;
+    public void setWeatherInfoMain(String weatherInfoMain) {
+        this.weatherInfoMain = weatherInfoMain;
+    }
+
+    public void setCountry(String country) {
+        this.country = country;
+    }
+
+    public void setWeatherDescription(String weatherDescription) {
+        this.weatherDescription = weatherDescription;
+    }
+
+    public void setSunset(int sunset) {
+        this.sunset = sunset;
+    }
+
+    public void setHumidity(int humidity) {
+        this.humidity = humidity;
+    }
+
+    public void setSunrise(int sunrise) {
+        this.sunrise = sunrise;
+    }
+
+    public void setClouds(int clouds) {
+        this.clouds = clouds;
     }
 
     public void setTemp(double temp) {
@@ -55,7 +86,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void setWeather(String weather) {
-        this.weather = weather;
+        this.weatherInfoMain = weather;
     }
 
     public void setCity(String city) {
@@ -65,14 +96,10 @@ public class MainActivity extends AppCompatActivity {
 
     @Subscribe(threadMode = ThreadMode.MAIN)
     public void onMessageEvent(WeatherResponse event) {
-        setError(event.getCod());
-        setCity(event.getName());
-        setWeather(event.getWeather().get(0).getMain());
-        setTemp(event.getMainTemp().getTemp());
-        setDate(event.getDt());
-        setIcon(event.getWeather().get(0).getIcon());
+        infoSetter(event);
         renderWeather();
     }
+
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
@@ -102,13 +129,12 @@ public class MainActivity extends AppCompatActivity {
     @SuppressLint("SetTextI18n")
     private void renderWeather() {
         cityTextView = findViewById(R.id.city_text_view);
-        cityTextView.setText(city);
+        cityTextView.setText(city + ", " + country);
 
-        mainPage = findViewById(R.id.main_page);
-        mainPage.setBackgroundResource(R.drawable.clouds_sky_pixel);
+        backgroundImageView = findViewById(R.id.background_image_view);
+        backgroundSetter();
 
-
-        String detailsText = weather;
+        String detailsText = weatherInfoMain;
         detailsTextView = findViewById(R.id.description_text_view);
         detailsTextView.setText(detailsText);
 
@@ -116,7 +142,7 @@ public class MainActivity extends AppCompatActivity {
         currentTempTextView.setText(String.valueOf((int) temp) + "°C");
 
         iconTextView = findViewById(R.id.icon_text_view);
-        iconTextView.setText(R.string.cloud_unicode);
+        iconSetter();
 
         updatedTextView = findViewById(R.id.last_update_text_view);
         DateFormat dateFormat = DateFormat.getDateTimeInstance();
@@ -133,9 +159,48 @@ public class MainActivity extends AppCompatActivity {
         alert.setView(input);
         alert.setPositiveButton("Check", (dialogInterface, i) -> {
             MainActivity.this.updateWeatherData(input.getText().toString());
-
         });
         alert.show();
+    }
+
+    private void infoSetter(WeatherResponse dataEvent) {
+
+        setError(dataEvent.getCod());
+        setCity(dataEvent.getName());
+        setWeather(dataEvent.getWeather().get(0).getDescription());
+        setTemp(dataEvent.getMainTemp().getTemp());
+        setDate(dataEvent.getDt());
+        setClouds(dataEvent.getCloudsClass().getClouds());
+        setSunrise(dataEvent.getOtherInfo().getSunrise());
+        setSunset(dataEvent.getOtherInfo().getSunset());
+        setHumidity(dataEvent.getMainTemp().getHumidity());
+        setWeatherInfoMain(dataEvent.getWeather().get(0).getWeatherInfoMain());
+        setWeatherDescription(dataEvent.getWeather().get(0).getDescription());
+        setCountry(dataEvent.getOtherInfo().getCountry());
+    }
+
+    private void backgroundSetter() {
+        if (weatherInfoMain.equalsIgnoreCase("Clouds") || weatherInfoMain.equalsIgnoreCase("Mist") || weatherInfoMain.equalsIgnoreCase("Smoke") ) {
+            backgroundImageView.setImageResource(R.drawable.clouds);
+        } else if (weatherInfoMain.equalsIgnoreCase("Thunderstorm") || weatherInfoMain.equalsIgnoreCase("Rain")) {
+            backgroundImageView.setImageResource(R.drawable.rain);
+        } else if (weatherInfoMain.equalsIgnoreCase("Clear")) {
+            backgroundImageView.setImageResource(R.drawable.sunny);
+        }
+    }
+
+    private void iconSetter() {
+        if (humidity > 5 && humidity < 50 || clouds > 1) {
+            iconTextView.setText(R.string.sunny_clouds);
+        } else if (weatherInfoMain.equalsIgnoreCase("Rain") || weatherInfoMain.equalsIgnoreCase("Thunderstorm")) {
+            iconTextView.setText(R.string.rainy);
+        } else if(weatherDescription.equalsIgnoreCase("light rain")) {
+            iconTextView.setText(R.string.rain_light);
+        } else if (weatherInfoMain.equalsIgnoreCase("Snow")) {
+            iconTextView.setText(R.string.snowy);
+        } else  if (weatherInfoMain.equalsIgnoreCase("Clear")) {
+            iconTextView.setText(R.string.sun_clear);
+        }
     }
 
 }

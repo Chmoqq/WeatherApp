@@ -4,5 +4,11 @@
     <string name="open_weather_map_api_key">03da8312a7a5e6916e46e172e8c0b2f0</string>
     <string name="check_weather">Check</string>
     <string name="write_down_your_city">Write down your city</string>
-    <string name="cloud_unicode">&#127783;</string>
+    <string name="rain_light">&#127783;</string>
+    <string name="sunny_clouds">&#127780;</string>
+    <string name="sun_clear">&#127774;</string>
+    <string name="rainy">&#127783;</string>
+    <string name="sunset">&#127751;</string>
+    <string name="sunrise">&#127749;</string>
+    <string name="snowy">&#127784;</string>
 </resources>

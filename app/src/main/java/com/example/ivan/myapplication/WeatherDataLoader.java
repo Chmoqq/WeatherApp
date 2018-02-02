@@ -1,5 +1,7 @@
 package com.example.ivan.myapplication;
 
+import android.widget.Toast;
+
 import org.greenrobot.eventbus.EventBus;
 
 import retrofit2.Call;
@@ -25,7 +27,14 @@ public class WeatherDataLoader {
         call.enqueue(new Callback<WeatherResponse>() {
             @Override
             public void onResponse(Call<WeatherResponse> call, Response<WeatherResponse> response) {
-                EventBus.getDefault().post(response.body());
+                if (response.body() != null) {
+                    EventBus.getDefault().post(response.body());
+                } else {
+                    MainActivity.errorToast.setText("Wrong city");
+                    MainActivity.errorToast.setDuration(Toast.LENGTH_SHORT);
+                    MainActivity.errorToast.show();
+                }
+
             }
 
             @Override
