@@ -1,16 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main_page"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:paddingBottom="16dp"
     android:paddingLeft="16dp"
     android:paddingRight="16dp"
     android:paddingTop="16dp"
-    tools:context="com.example.ivan.myapplication.MainActivity">
+    tools:context="com.example.ivan.myapplication.MainActivity"
+    tools:ignore="MissingPrefix">
+
 
     <TextView
-        android:id="@+id/text_view_1"
+        android:id="@+id/city_text_view"
+        style="@style/weather_app"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
@@ -18,30 +22,49 @@
         android:textSize="40sp" />
 
     <TextView
-        android:id="@+id/text_view_2"
+        android:id="@+id/description_text_view"
+        style="@style/weather_app"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@id/text_view_1"
+        android:layout_below="@id/city_text_view"
         android:layout_centerHorizontal="true"
-
         android:layout_marginTop="16dp"
         android:textAppearance="?android:textAppearanceLarge"
         android:textSize="50sp" />
 
     <TextView
-        android:id="@+id/text_view_3"
+        android:id="@+id/temp_text_view"
+        style="@style/weather_app"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@id/text_view_2"
+        android:layout_below="@id/description_text_view"
         android:layout_centerHorizontal="true"
+        android:layout_marginEnd="10dp"
+        android:layout_marginLeft="10dp"
+        android:layout_marginRight="10dp"
+        android:layout_marginStart="10dp"
         android:textAppearance="?android:textAppearanceLarge"
         android:textSize="40sp" />
 
     <TextView
-        android:id="@+id/text_view_4"
+        android:id="@+id/icon_text_view"
+        style="@style/weather_app"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_below="@id/text_view_3"
+        android:layout_alignBottom="@id/description_text_view"
+        android:layout_marginLeft="10dp"
+        android:layout_marginStart="10dp"
+        android:layout_toEndOf="@id/description_text_view"
+        android:layout_toRightOf="@id/description_text_view"
+        android:textAppearance="?android:textAppearanceSmall"
+        android:textSize="40sp" />
+
+    <TextView
+        android:id="@+id/last_update_text_view"
+        style="@style/weather_app"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/temp_text_view"
         android:layout_centerHorizontal="true"
         android:textAppearance="?android:textAppearanceMedium" />
 

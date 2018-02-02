@@ -6,6 +6,14 @@
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
+
+    </style>
+
+    <style name="weather_app" parent="AppTheme">
+
+        <item name="android:fontFamily">@font/arial</item>
+        <item name="android:textColor">@color/white</item>
+
     </style>
 
 </resources>

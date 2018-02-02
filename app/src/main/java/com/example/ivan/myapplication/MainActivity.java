@@ -1,10 +1,6 @@
 package com.example.ivan.myapplication;
 
 import android.annotation.SuppressLint;
-import android.content.DialogInterface;
-import android.graphics.Typeface;
-import android.os.Handler;
-import android.os.Message;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -12,6 +8,7 @@ import android.text.InputType;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.EditText;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -21,28 +18,29 @@ import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
 
 import java.text.DateFormat;
-import java.text.FieldPosition;
-import java.text.ParsePosition;
-import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
 
 
-    private Handler handler = new Handler();
-
+    private TextView iconTextView;
     private TextView cityTextView;
     private TextView updatedTextView;
     private TextView detailsTextView;
     private TextView currentTempTextView;
     private AlertDialog.Builder alert;
 
+    private long date;
+    private double temp;
     private int error;
     private String weather;
     private String city;
-    private long date;
-    private double temp;
+    private String icon;
+    private RelativeLayout mainPage;
+
+    public void setIcon(String icon) {
+        this.icon = icon;
+    }
 
     public void setTemp(double temp) {
         this.temp = temp;
@@ -72,6 +70,7 @@ public class MainActivity extends AppCompatActivity {
         setWeather(event.getWeather().get(0).getMain());
         setTemp(event.getMainTemp().getTemp());
         setDate(event.getDt());
+        setIcon(event.getWeather().get(0).getIcon());
         renderWeather();
     }
 
@@ -102,18 +101,24 @@ public class MainActivity extends AppCompatActivity {
 
     @SuppressLint("SetTextI18n")
     private void renderWeather() {
-        final String cityText = city;
-        cityTextView = findViewById(R.id.text_view_1);
-        cityTextView.setText(cityText);
+        cityTextView = findViewById(R.id.city_text_view);
+        cityTextView.setText(city);
+
+        mainPage = findViewById(R.id.main_page);
+        mainPage.setBackgroundResource(R.drawable.clouds_sky_pixel);
+
 
         String detailsText = weather;
-        detailsTextView = findViewById(R.id.text_view_2);
+        detailsTextView = findViewById(R.id.description_text_view);
         detailsTextView.setText(detailsText);
 
-        currentTempTextView = findViewById(R.id.text_view_3);
-        currentTempTextView.setText(String.valueOf((int)temp) + "°C");
+        currentTempTextView = findViewById(R.id.temp_text_view);
+        currentTempTextView.setText(String.valueOf((int) temp) + "°C");
 
-        updatedTextView = findViewById(R.id.text_view_4);
+        iconTextView = findViewById(R.id.icon_text_view);
+        iconTextView.setText(R.string.cloud_unicode);
+
+        updatedTextView = findViewById(R.id.last_update_text_view);
         DateFormat dateFormat = DateFormat.getDateTimeInstance();
         String lastUpdate = dateFormat.format(new Date(this.date * 1000));
         updatedTextView.setText(lastUpdate);
