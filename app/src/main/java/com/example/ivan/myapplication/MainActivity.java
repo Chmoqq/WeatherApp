@@ -2,9 +2,9 @@ package com.example.ivan.myapplication;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
-import android.content.Context;
 import android.content.pm.PackageManager;
 import android.location.Location;
+import android.location.LocationManager;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
@@ -18,52 +18,28 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-
-import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.tasks.OnSuccessListener;
-
-import org.greenrobot.eventbus.EventBus;
-import org.greenrobot.eventbus.Subscribe;
-import org.greenrobot.eventbus.ThreadMode;
-
-import java.text.DateFormat;
-import java.util.Date;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import retrofit2.Retrofit;
+import retrofit2.converter.gson.GsonConverterFactory;
 
 public class MainActivity extends AppCompatActivity {
 
-
     private static final int PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION = 200;
-    private FusedLocationProviderClient mFusedLocationProviderClient;
     private TextView iconTextView;
     private TextView cityTextView;
-    private TextView updatedTextView;
     private TextView detailsTextView;
     private TextView currentTempTextView;
     private AlertDialog.Builder alert;
-    static Toast errorToast;
+    private Toast errorToast;
+    private Retrofit retrofit;
+    private WeatherAPIClient service;
+    private LocationManager locationManager = null;
 
-    private double latitude;
-    private double longitude;
-    private long date;
     private int sunset;
     private int sunrise;
-    private int error;
-    private String country;
-    private int humidity;
-    private int clouds;
-    private double temp;
-    private String weatherInfoMain;
-    private String city;
-    private String weatherDescription;
     private ImageView backgroundImageView;
-
-    @Subscribe(threadMode = ThreadMode.MAIN)
-    public void onMessageEvent(WeatherResponse event) {
-        infoSetter(event);
-        renderWeather();
-    }
-
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
@@ -81,39 +57,30 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        mFusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
-        EventBus.getDefault().register(this);
         getLongLat();
-        WeatherDataLoader.infoGetterCity(null, (float) latitude, (float) longitude);
     }
 
     private void updateWeatherData(String city) {
-        new Thread(() -> WeatherDataLoader.infoGetterCity(city, 0, 0)).start();
+        new Thread(() -> infoGetterCity(city)).start();
     }
 
 
     @SuppressLint("SetTextI18n")
-    private void renderWeather() {
+    private void renderWeather(Response<WeatherResponse> response) {
         cityTextView = findViewById(R.id.city_text_view);
-        cityTextView.setText(city + ", " + country);
+        cityTextView.setText(response.body().getName() + ", " + response.body().getOtherInfo().getCountry());
 
         backgroundImageView = findViewById(R.id.background_image_view);
-        backgroundSetter();
+        backgroundSetter(response);
 
-        String detailsText = weatherInfoMain;
         detailsTextView = findViewById(R.id.description_text_view);
-        detailsTextView.setText(detailsText);
+        detailsTextView.setText(response.body().getWeather().get(0).getWeatherInfoMain());
 
         currentTempTextView = findViewById(R.id.temp_text_view);
-        currentTempTextView.setText(String.valueOf((int) temp) + "°C");
+        currentTempTextView.setText(String.valueOf((int) response.body().getMainTemp().getTemp()) + "°C");
 
         iconTextView = findViewById(R.id.icon_text_view);
-        iconSetter();
-
-        updatedTextView = findViewById(R.id.last_update_text_view);
-        DateFormat dateFormat = DateFormat.getDateTimeInstance();
-        String lastUpdate = dateFormat.format(new Date(this.date * 1000));
-        updatedTextView.setText(lastUpdate);
+        iconSetter(response);
     }
 
 
@@ -129,63 +96,115 @@ public class MainActivity extends AppCompatActivity {
         alert.show();
     }
 
-    private void infoSetter(WeatherResponse dataEvent) {
+    private void backgroundSetter(Response<WeatherResponse> response) {
+        switch (response.body().getWeather().get(0).getWeatherInfoMain().toLowerCase()) {
+            case "clouds":
+            case "mist":
+            case "smoke":
+                backgroundImageView.setImageResource(R.drawable.clouds);
+                break;
 
-        error = dataEvent.getCod();
-        city = dataEvent.getName();
-        temp = dataEvent.getMainTemp().getTemp();
-        date = dataEvent.getDt();
-        clouds = dataEvent.getCloudsClass().getClouds();
-        sunrise = dataEvent.getOtherInfo().getSunrise();
-        sunset = dataEvent.getOtherInfo().getSunset();
-        humidity = dataEvent.getMainTemp().getHumidity();
-        weatherInfoMain = dataEvent.getWeather().get(0).getWeatherInfoMain();
-        weatherDescription = dataEvent.getWeather().get(0).getDescription();
-        country = dataEvent.getOtherInfo().getCountry();
-    }
+            case "thunderstorm":
+            case "rain":
+                backgroundImageView.setImageResource(R.drawable.rain);
+                break;
 
-    private void backgroundSetter() {
-        if (weatherInfoMain.equalsIgnoreCase("Clouds") || weatherInfoMain.equalsIgnoreCase("Mist") || weatherInfoMain.equalsIgnoreCase("Smoke")) {
-            backgroundImageView.setImageResource(R.drawable.clouds);
-        } else if (weatherInfoMain.equalsIgnoreCase("Thunderstorm") || weatherInfoMain.equalsIgnoreCase("Rain")) {
-            backgroundImageView.setImageResource(R.drawable.rain);
-        } else if (weatherInfoMain.equalsIgnoreCase("Clear")) {
-            backgroundImageView.setImageResource(R.drawable.sunny);
+            case "clear":
+                backgroundImageView.setImageResource(R.drawable.sunny);
+                break;
+
+            case "snow":
+                backgroundImageView.setImageResource(R.drawable.snow);
         }
     }
 
-    private void iconSetter() {
-        if (humidity > 5 && humidity < 50 || clouds > 1) {
+    private void iconSetter(Response<WeatherResponse> response) {
+        if (response.body().getWeather().get(0).getWeatherInfoMain().equalsIgnoreCase("clouds") && response.body().getCloudsClass().getClouds() > 10) {
             iconTextView.setText(R.string.sunny_clouds);
-        } else if (weatherInfoMain.equalsIgnoreCase("Rain") || weatherInfoMain.equalsIgnoreCase("Thunderstorm")) {
+        } else if (response.body().getWeather().get(0).getWeatherInfoMain().equalsIgnoreCase("Rain") || response.body().getWeather().get(0).getWeatherInfoMain().equalsIgnoreCase("Thunderstorm")) {
             iconTextView.setText(R.string.rainy);
-        } else if (weatherDescription.equalsIgnoreCase("light rain")) {
+        } else if (response.body().getWeather().get(0).getDescription().equalsIgnoreCase("light rain")) {
             iconTextView.setText(R.string.rain_light);
-        } else if (weatherInfoMain.equalsIgnoreCase("Snow")) {
+        } else if (response.body().getWeather().get(0).getWeatherInfoMain().equalsIgnoreCase("Snow")) {
             iconTextView.setText(R.string.snowy);
-        } else if (weatherInfoMain.equalsIgnoreCase("Clear")) {
+        } else if (response.body().getWeather().get(0).getWeatherInfoMain().equalsIgnoreCase("Clear")) {
             iconTextView.setText(R.string.sun_clear);
         }
     }
 
     private void getLongLat() {
+        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
 
-        if (ContextCompat.checkSelfPermission(this.getApplicationContext(), Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED && ContextCompat.checkSelfPermission(this.getApplicationContext(), Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+            Location loc = locationManager.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER);
 
-            mFusedLocationProviderClient.getLastLocation()
-                    .addOnSuccessListener(this, new OnSuccessListener<Location>() {
-                        @Override
-                        public void onSuccess(Location location) {
-                            if (location != null) {
-                                latitude = location.getLatitude();
-                                longitude = location.getLongitude();
-                            }
-                        }
-                    });
+            double latitude = loc.getLatitude();
+            double longitude = loc.getLongitude();
+
+            infoGetterLongLat(latitude, longitude);
         } else {
-            ActivityCompat.requestPermissions(this,
-                    new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION);
+            ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.ACCESS_COARSE_LOCATION}, PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION);
         }
     }
 
+    private void infoGetterCity(String city) {
+
+        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+
+        retrofit = new Retrofit.Builder()
+                .baseUrl("http://api.openweathermap.org")
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+
+        service = retrofit.create(WeatherAPIClient.class);
+        Call<WeatherResponse> call = service.getWeatherByName(city);
+        call.enqueue(new Callback<WeatherResponse>() {
+            @Override
+            public void onResponse(Call<WeatherResponse> call, Response<WeatherResponse> response) {
+                if (response.body() == null) {
+                    errorToast = Toast.makeText(getApplicationContext(), "Wrong city", Toast.LENGTH_SHORT);
+                    errorToast.show();
+                } else {
+                    renderWeather(response);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<WeatherResponse> call, Throwable t) {
+                System.out.println(t.getLocalizedMessage());
+            }
+        });
+    }
+
+    private void infoGetterLongLat(double latitude, double longitude) {
+
+        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+
+        retrofit = new Retrofit.Builder()
+                .baseUrl("http://api.openweathermap.org")
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+
+        service = retrofit.create(WeatherAPIClient.class);
+        Call<WeatherResponse> callLatLong = service.getWeatherByPosition((float) latitude, (float) longitude);
+        callLatLong.enqueue(new Callback<WeatherResponse>() {
+            @Override
+            public void onResponse(Call<WeatherResponse> call, Response<WeatherResponse> response) {
+                if (response == null) {
+                    errorToast = new Toast(getApplicationContext());
+                    errorToast.setText("Wrong city");
+                    errorToast.setDuration(Toast.LENGTH_SHORT);
+                    errorToast.show();
+                } else {
+                    renderWeather(response);
+                }
+            }
+
+            @Override
+            public void onFailure(Call<WeatherResponse> call, Throwable t) {
+                System.out.println(t.getLocalizedMessage());
+            }
+        });
+    }
 }
+

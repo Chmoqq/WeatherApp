@@ -10,7 +10,6 @@ public class WeatherResponse {
 
     private int visibility;
     private int cod;
-    private int dt;
     private String name;
     private List<WeatherInfoEntity> weather;
     private WeatherInfoTemp main;
@@ -85,10 +84,6 @@ public class WeatherResponse {
 
     public WeatherInfoTemp getMainTemp() {
         return main;
-    }
-
-    public int getDt() {
-        return dt;
     }
 
     public int getCod() {
